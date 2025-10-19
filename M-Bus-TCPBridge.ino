@@ -1,20 +1,27 @@
+/*
+  Arduino SDK 3.3.x
+  ESP IDF 5.5.x
+*/
+
 #include <WiFi.h>
-#include "WiFiServer6.h"
 
 const char* ssid = "";
 const char* password = "";
 
-WiFiServer6 server6(1234);
+NetworkServer server(1234);
 
 void WiFiEvent(WiFiEvent_t event){
     switch(event) {
         case ARDUINO_EVENT_WIFI_STA_CONNECTED:
             Serial.println("STA Connected");
-            WiFi.enableIpV6();
+            break;
+        case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+            Serial.print("STA IP: ");
+            Serial.println(WiFi.localIP());
             break;
         case ARDUINO_EVENT_WIFI_STA_GOT_IP6:
             Serial.print("STA IPv6: ");
-            Serial.println(WiFi.localIPv6());
+            Serial.println(WiFi.linkLocalIPv6());
             Serial.println(WiFi.globalIPv6());
             break;
         default:
@@ -27,7 +34,9 @@ void setup() {
   Serial2.begin(2400, SERIAL_8E1, 36, 4);
  
   WiFi.onEvent(WiFiEvent);
+  WiFi.enableIPv6();
   WiFi.mode(WIFI_STA);
+
   WiFi.begin(ssid, password);
   
   while (WiFi.status() != WL_CONNECTED) {
@@ -37,19 +46,20 @@ void setup() {
   
   Serial.println("Connected to WiFi");
 
-  server6.begin();
+  server.begin();
   Serial.println("Server started");
 }
 
 void loop() {
- WiFiClient client6 = server6.available();
+ NetworkClient client = server.available();
 
- if (client6) {                             // if you get a client,
-    Serial.println("New Client.");           // print a message out the serial port
-    String currentLine = "";                // make a String to hold incoming data from the client
-    while (client6.connected()) {            // loop while the client's connected
-      if (client6.available()) {             // if there's bytes to read from the client,
-        char c = client6.read();
+ if (client) {                             // if you get a client,
+    Serial.print("New Client.");           // print a message out the serial port
+    Serial.println(client.remoteIP());     // print a message out the serial port
+    String currentLine = "";               // make a String to hold incoming data from the client
+    while (client.connected()) {           // loop while the client's connected
+      if (client.available()) {            // if there's bytes to read from the client,
+        char c = client.read();
         Serial2.write(c);
         Serial.write("TCP READ: ");
         Serial.println(c, HEX);
@@ -58,11 +68,11 @@ void loop() {
       if (Serial2.available()) {
           char sr = Serial2.read();
           Serial.write("SER READ: "); Serial.println(sr, HEX);
-          client6.write(sr);
+          client.write(sr);
         }
     }
     // close the connection:
-    client6.stop();
+    client.stop();
     Serial.println("Client Disconnected.");
   }
 }
