@@ -9,7 +9,7 @@
 #include "OtaControl.h"
 
 
-static log4mcu::Logger& logger = log4mcu::Logger::get("PortfolioESPlink");
+static log4mcu::Logger& logger = log4mcu::Logger::get("M-Bus Bridge");
 static log4mcu::SerialLogAppender serialAppender(Serial);
 
 NetworkServer server(1234);
@@ -17,17 +17,20 @@ NetworkServer server(1234);
 void WiFiEvent(WiFiEvent_t event){
     switch(event) {
         case ARDUINO_EVENT_WIFI_STA_CONNECTED:
-            Serial.println("STA Connected");
+            logger.info("STA Connected");
             break;
-        case ARDUINO_EVENT_WIFI_STA_GOT_IP:
-            Serial.print("STA IP: ");
-            Serial.println(WiFi.localIP());
+        case ARDUINO_EVENT_WIFI_STA_GOT_IP: {
+            const String message = "STA IP: " + WiFi.localIP().toString();
+            logger.info(message.c_str());
             break;
-        case ARDUINO_EVENT_WIFI_STA_GOT_IP6:
-            Serial.print("STA IPv6: ");
-            Serial.println(WiFi.linkLocalIPv6());
-            Serial.println(WiFi.globalIPv6());
+        }
+        case ARDUINO_EVENT_WIFI_STA_GOT_IP6: {
+            const String linkLocal = "STA link-local IPv6: " + WiFi.linkLocalIPv6().toString();
+            const String global = "STA global IPv6: " + WiFi.globalIPv6().toString();
+            logger.info(linkLocal.c_str());
+            logger.info(global.c_str());
             break;
+        }
         default:
             break;
     }
@@ -70,22 +73,21 @@ void loop() {
  NetworkClient client = server.accept();
 
  if (client) {                             // if you get a client,
-    Serial.print("New Client.");           // print a message out the serial port
-    logger.info("New client connected ");
-    logger.info(String(client.remoteIP()).c_str());        // print a message out the serial port
+    const String remoteAddress = "New client connected: " + client.remoteIP().toString();
+    logger.info(remoteAddress.c_str());
     String currentLine = "";               // make a String to hold incoming data from the client
     while (client.connected()) {           // loop while the client's connected
       if (client.available()) {            // if there's bytes to read from the client,
         char c = client.read();
         Serial2.write(c);
-        logger.debug("TCP READ: ");
-        Serial.println(c, HEX);
+        const String message = "TCP READ: " + String(static_cast<uint8_t>(c), HEX);
+        logger.debug(message.c_str());
       }
  
       if (Serial2.available()) {
           char sr = Serial2.read();
-          logger.debug("SER READ: ");
-          Serial.println(sr, HEX);
+          const String message = "SER READ: " + String(static_cast<uint8_t>(sr), HEX);
+          logger.debug(message.c_str());
           client.write(sr);
         }
     }
@@ -93,4 +95,5 @@ void loop() {
     client.stop();
     logger.info("Client Disconnected.");
   }
+  otaControlLoop();
 }
